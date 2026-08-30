@@ -30,3 +30,12 @@
 *.exe
 *.out
 *.app
+
+# Build output and CMake artifacts
+build/
+bin/
+lib/
+
+# Editor configuration
+.vscode/
+compile_commands.json
