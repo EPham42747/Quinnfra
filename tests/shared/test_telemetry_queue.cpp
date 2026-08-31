@@ -33,7 +33,7 @@ TelemetryEvent make_event(uint32_t seq, EventType type = EventType::HEARTBEAT) {
 
 // 1. Memory Layout & Cache Line False-Sharing Checks
 TEST(SpscQueueTest, MemoryLayoutAndCacheAlignment) {
-    using TestQueue = spsc::RingBufferLayout<TelemetryEvent, 1024>;
+    using TestQueue = detail::RingBufferLayout<TelemetryEvent, 1024>;
 
     // Ensure the struct and its critical members meet the 64-byte alignment requirement
     EXPECT_EQ(alignof(TestQueue), hardware_destructive_interference_size);
@@ -50,8 +50,8 @@ TEST(SpscQueueTest, MemoryLayoutAndCacheAlignment) {
 TEST(SpscQueueTest, EmptyQueueReturnsNullptr) {
     constexpr size_t Capacity = 16;
 
-    auto layout = std::make_unique<spsc::RingBufferLayout<TelemetryEvent, Capacity>>();
-    spsc::ConsumerView<TelemetryEvent, Capacity> consumer(layout.get());
+    auto layout = std::make_unique<detail::RingBufferLayout<TelemetryEvent, Capacity>>();
+    detail::ConsumerView<TelemetryEvent, Capacity> consumer(layout.get());
 
     EXPECT_EQ(consumer.front(), nullptr);
     EXPECT_EQ(consumer.front(), nullptr);
@@ -61,9 +61,9 @@ TEST(SpscQueueTest, EmptyQueueReturnsNullptr) {
 TEST(SpscQueueTest, FifoOrderingAndPeekPopContract) {
     constexpr size_t Capacity = 8;
 
-    auto layout = std::make_unique<spsc::RingBufferLayout<TelemetryEvent, Capacity>>();
-    spsc::ProducerView<TelemetryEvent, Capacity> producer(layout.get());
-    spsc::ConsumerView<TelemetryEvent, Capacity> consumer(layout.get());
+    auto layout = std::make_unique<detail::RingBufferLayout<TelemetryEvent, Capacity>>();
+    detail::ProducerView<TelemetryEvent, Capacity> producer(layout.get());
+    detail::ConsumerView<TelemetryEvent, Capacity> consumer(layout.get());
 
     auto ev1 = make_event(101, EventType::HEARTBEAT);
     auto ev2 = make_event(102, EventType::HEARTBEAT);
@@ -97,9 +97,9 @@ TEST(SpscQueueTest, FifoOrderingAndPeekPopContract) {
 TEST(SpscQueueTest, RejectsPushWhenBufferIsFull) {
     constexpr size_t Capacity = 4;
 
-    auto layout = std::make_unique<spsc::RingBufferLayout<TelemetryEvent, Capacity>>();
-    spsc::ProducerView<TelemetryEvent, Capacity> producer(layout.get());
-    spsc::ConsumerView<TelemetryEvent, Capacity> consumer(layout.get());
+    auto layout = std::make_unique<detail::RingBufferLayout<TelemetryEvent, Capacity>>();
+    detail::ProducerView<TelemetryEvent, Capacity> producer(layout.get());
+    detail::ConsumerView<TelemetryEvent, Capacity> consumer(layout.get());
 
     // Fill the buffer to capacity
     for (size_t i = 0; i < Capacity; ++i) {
@@ -124,9 +124,9 @@ TEST(SpscQueueTest, ContinuousWrapAroundIntegrity) {
     constexpr size_t Capacity = 8;
     constexpr size_t TotalEvents = 100'000;
 
-    auto layout = std::make_unique<spsc::RingBufferLayout<TelemetryEvent, Capacity>>();
-    spsc::ProducerView<TelemetryEvent, Capacity> producer(layout.get());
-    spsc::ConsumerView<TelemetryEvent, Capacity> consumer(layout.get());
+    auto layout = std::make_unique<detail::RingBufferLayout<TelemetryEvent, Capacity>>();
+    detail::ProducerView<TelemetryEvent, Capacity> producer(layout.get());
+    detail::ConsumerView<TelemetryEvent, Capacity> consumer(layout.get());
 
     for (size_t i = 0; i < TotalEvents; ++i) {
         ASSERT_TRUE(producer.try_push(make_event(static_cast<uint32_t>(i))));
@@ -147,7 +147,7 @@ TEST(SpscQueueTest, ConcurrentStreamingNoLossOrCorruption) {
     constexpr size_t Capacity = 1024;
     constexpr size_t EventCount = 2'000'000;
 
-    auto layout = std::make_unique<spsc::RingBufferLayout<TelemetryEvent, Capacity>>();
+    auto layout = std::make_unique<detail::RingBufferLayout<TelemetryEvent, Capacity>>();
     std::atomic<bool> producer_done{false};
 
     std::vector<uint32_t> received_sequences;
@@ -155,7 +155,7 @@ TEST(SpscQueueTest, ConcurrentStreamingNoLossOrCorruption) {
 
     // Consumer thread: reads until producer is done and queue is drained
     std::thread consumer_thread([&]() {
-        spsc::ConsumerView<TelemetryEvent, Capacity> consumer(layout.get());
+        detail::ConsumerView<TelemetryEvent, Capacity> consumer(layout.get());
 
         while (!producer_done.load(std::memory_order_relaxed) || consumer.front() != nullptr) {
             if (const auto* ev = consumer.front()) {
@@ -176,7 +176,7 @@ TEST(SpscQueueTest, ConcurrentStreamingNoLossOrCorruption) {
 
     // Producer thread: streams EventCount events, spinning when full
     std::thread producer_thread([&]() {
-        spsc::ProducerView<TelemetryEvent, Capacity> producer(layout.get());
+        detail::ProducerView<TelemetryEvent, Capacity> producer(layout.get());
 
         for (size_t i = 0; i < EventCount; ++i) {
             TelemetryEvent ev = make_event(static_cast<uint32_t>(i));

@@ -16,7 +16,7 @@ using std::hardware_destructive_interference_size;
 constexpr size_t hardware_destructive_interference_size = 64;
 #endif
 
-namespace spsc {
+namespace detail {
 
 /// @brief Cacheline-isolated shared memory layout for a lock-free SPSC ring buffer.
 /// @tparam T Trivially copyable type.
@@ -120,19 +120,19 @@ private:
     uint64_t cached_write_index_{0};
 };
 
-} // namespace spsc
+} // namespace detail
 
 
 /// @brief Default capacity (~4MB), sized to avoid drops if the consumer briefly pauses.
 constexpr size_t DEFAULT_QUEUE_CAPACITY = 65536;
 
 /// @brief Shared memory layout type for telemetry.
-using TelemetryQueue = spsc::RingBufferLayout<TelemetryEvent, DEFAULT_QUEUE_CAPACITY>;
+using TelemetryQueue = detail::RingBufferLayout<TelemetryEvent, DEFAULT_QUEUE_CAPACITY>;
 
 /// @brief Producer type for emitting telemetry.
-using TelemetryProducer = spsc::ProducerView<TelemetryEvent, DEFAULT_QUEUE_CAPACITY>;
+using TelemetryProducer = detail::ProducerView<TelemetryEvent, DEFAULT_QUEUE_CAPACITY>;
 
 /// @brief Consumer type for reading telemetry.
-using TelemetryConsumer = spsc::ConsumerView<TelemetryEvent, DEFAULT_QUEUE_CAPACITY>;
+using TelemetryConsumer = detail::ConsumerView<TelemetryEvent, DEFAULT_QUEUE_CAPACITY>;
 
 } // namespace telemetry
