@@ -12,9 +12,10 @@
 #include <immintrin.h>
 #endif
 
-#include "shared/telemetry_event.hpp"
-#include "shared/telemetry_payloads.hpp"
-#include "shared/telemetry_queue.hpp"
+#include "shared/telemetry/consumer.hpp"
+#include "shared/telemetry/producer.hpp"
+#include "shared/telemetry/telemetry_event.hpp"
+#include "shared/telemetry/telemetry_payloads.hpp"
 
 namespace telemetry::testing {
 
@@ -51,7 +52,7 @@ TEST(SpscQueueTest, EmptyQueueReturnsNullptr) {
     constexpr size_t Capacity = 16;
 
     auto layout = std::make_unique<detail::RingBufferLayout<TelemetryEvent, Capacity>>();
-    detail::ConsumerView<TelemetryEvent, Capacity> consumer(layout.get());
+    ConsumerView<TelemetryEvent, Capacity> consumer(layout.get());
 
     EXPECT_EQ(consumer.front(), nullptr);
     EXPECT_EQ(consumer.front(), nullptr);
@@ -62,8 +63,8 @@ TEST(SpscQueueTest, FifoOrderingAndPeekPopContract) {
     constexpr size_t Capacity = 8;
 
     auto layout = std::make_unique<detail::RingBufferLayout<TelemetryEvent, Capacity>>();
-    detail::ProducerView<TelemetryEvent, Capacity> producer(layout.get());
-    detail::ConsumerView<TelemetryEvent, Capacity> consumer(layout.get());
+    ProducerView<TelemetryEvent, Capacity> producer(layout.get());
+    ConsumerView<TelemetryEvent, Capacity> consumer(layout.get());
 
     auto ev1 = make_event(101, EventType::HEARTBEAT);
     auto ev2 = make_event(102, EventType::HEARTBEAT);
@@ -98,8 +99,8 @@ TEST(SpscQueueTest, RejectsPushWhenBufferIsFull) {
     constexpr size_t Capacity = 4;
 
     auto layout = std::make_unique<detail::RingBufferLayout<TelemetryEvent, Capacity>>();
-    detail::ProducerView<TelemetryEvent, Capacity> producer(layout.get());
-    detail::ConsumerView<TelemetryEvent, Capacity> consumer(layout.get());
+    ProducerView<TelemetryEvent, Capacity> producer(layout.get());
+    ConsumerView<TelemetryEvent, Capacity> consumer(layout.get());
 
     // Fill the buffer to capacity
     for (size_t i = 0; i < Capacity; ++i) {
@@ -125,8 +126,8 @@ TEST(SpscQueueTest, ContinuousWrapAroundIntegrity) {
     constexpr size_t TotalEvents = 100'000;
 
     auto layout = std::make_unique<detail::RingBufferLayout<TelemetryEvent, Capacity>>();
-    detail::ProducerView<TelemetryEvent, Capacity> producer(layout.get());
-    detail::ConsumerView<TelemetryEvent, Capacity> consumer(layout.get());
+    ProducerView<TelemetryEvent, Capacity> producer(layout.get());
+    ConsumerView<TelemetryEvent, Capacity> consumer(layout.get());
 
     for (size_t i = 0; i < TotalEvents; ++i) {
         ASSERT_TRUE(producer.try_push(make_event(static_cast<uint32_t>(i))));
@@ -155,7 +156,7 @@ TEST(SpscQueueTest, ConcurrentStreamingNoLossOrCorruption) {
 
     // Consumer thread: reads until producer is done and queue is drained
     std::thread consumer_thread([&]() {
-        detail::ConsumerView<TelemetryEvent, Capacity> consumer(layout.get());
+        ConsumerView<TelemetryEvent, Capacity> consumer(layout.get());
 
         while (!producer_done.load(std::memory_order_relaxed) || consumer.front() != nullptr) {
             if (const auto* ev = consumer.front()) {
@@ -176,7 +177,7 @@ TEST(SpscQueueTest, ConcurrentStreamingNoLossOrCorruption) {
 
     // Producer thread: streams EventCount events, spinning when full
     std::thread producer_thread([&]() {
-        detail::ProducerView<TelemetryEvent, Capacity> producer(layout.get());
+        ProducerView<TelemetryEvent, Capacity> producer(layout.get());
 
         for (size_t i = 0; i < EventCount; ++i) {
             TelemetryEvent ev = make_event(static_cast<uint32_t>(i));
@@ -200,6 +201,79 @@ TEST(SpscQueueTest, ConcurrentStreamingNoLossOrCorruption) {
     for (size_t i = 0; i < EventCount; ++i) {
         ASSERT_EQ(received_sequences[i], static_cast<uint32_t>(i));
     }
+}
+
+// 7. Dropped Event Tracking
+TEST(SpscQueueTest, TracksDroppedEventsWhenFull) {
+    constexpr size_t Capacity = 4;
+    auto layout = std::make_unique<detail::RingBufferLayout<TelemetryEvent, Capacity>>();
+    ProducerView<TelemetryEvent, Capacity> producer(layout.get());
+    ConsumerView<TelemetryEvent, Capacity> consumer(layout.get());
+
+    EXPECT_EQ(consumer.dropped_count(), 0);
+
+    for (size_t i = 0; i < Capacity; ++i) {
+        EXPECT_TRUE(producer.try_push(make_event(static_cast<uint32_t>(i))));
+    }
+
+    // Now pushes should fail and increment dropped_events
+    EXPECT_FALSE(producer.try_push(make_event(100)));
+    EXPECT_FALSE(producer.try_push(make_event(101)));
+    EXPECT_EQ(consumer.dropped_count(), 2);
+
+    // Drain one slot via zero-copy front() + pop()
+    const auto* front_item = consumer.front();
+    ASSERT_NE(front_item, nullptr);
+    EXPECT_EQ(front_item->sequence_num, 0);
+    consumer.pop();
+
+    // Now pushing succeeds once
+    EXPECT_TRUE(producer.try_push(make_event(102)));
+    EXPECT_EQ(consumer.dropped_count(), 2); // Dropped count remains 2
+}
+
+// 8. Shared Memory Producer-Owned Lifecycle (Create -> Attach -> Consumer detach -> Producer cleanup)
+TEST(SpscQueueTest, ShmProducerOwnedLifecycle) {
+    constexpr size_t Capacity = 64;
+    const std::string test_shm = "/test_quinnfra_telemetry_" + std::to_string(::getpid());
+
+    // 1. Consumer attach fails if producer has not created it
+    auto consumer_before_producer = ConsumerView<TelemetryEvent, Capacity>::attach(test_shm);
+    EXPECT_FALSE(consumer_before_producer.has_value());
+
+    // 2. Producer creates and owns the shared memory
+    auto producer_opt = ProducerView<TelemetryEvent, Capacity>::create(test_shm);
+    ASSERT_TRUE(producer_opt.has_value());
+
+    // 3. Consumer can now attach to the existing segment
+    auto consumer_opt = ConsumerView<TelemetryEvent, Capacity>::attach(test_shm);
+    ASSERT_TRUE(consumer_opt.has_value());
+
+    // 4. Data flows across the shared memory
+    EXPECT_TRUE(producer_opt->try_push(make_event(42)));
+    const auto* event = consumer_opt->front();
+    ASSERT_NE(event, nullptr);
+    EXPECT_EQ(event->sequence_num, 42);
+    consumer_opt->pop();
+
+    // Push more data to the alive segment
+    EXPECT_TRUE(producer_opt->try_push(make_event(43)));
+
+    // New consumer attaches and resumes reading seamlessly
+    auto new_consumer = ConsumerView<TelemetryEvent, Capacity>::attach(test_shm);
+    ASSERT_TRUE(new_consumer.has_value());
+    const auto* second_event = new_consumer->front();
+    ASSERT_NE(second_event, nullptr);
+    EXPECT_EQ(second_event->sequence_num, 43);
+    new_consumer->pop();
+
+    // 5. Producer destruction unlinks the shared memory
+    producer_opt.reset();
+    new_consumer.reset();
+
+    // After producer destruction, attach should fail
+    auto consumer_after_cleanup = ConsumerView<TelemetryEvent, Capacity>::attach(test_shm);
+    EXPECT_FALSE(consumer_after_cleanup.has_value());
 }
 
 } // namespace telemetry::testing
