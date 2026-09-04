@@ -12,10 +12,10 @@
 #include <immintrin.h>
 #endif
 
-#include "shared/telemetry/consumer.hpp"
-#include "shared/telemetry/producer.hpp"
-#include "shared/telemetry/telemetry_event.hpp"
-#include "shared/telemetry/telemetry_payloads.hpp"
+#include <quinnfra/telemetry/consumer.hpp>
+#include <quinnfra/telemetry/producer.hpp>
+#include <quinnfra/telemetry/event.hpp>
+#include <quinnfra/telemetry/payloads.hpp>
 
 namespace telemetry::testing {
 

@@ -2,7 +2,7 @@
 #include <cstdint>
 #include <type_traits>
 
-#include "telemetry_payloads.hpp"
+#include "payloads.hpp"
 
 /// @file telemetry_event.hpp
 /// @brief IPC telemetry event definitions and metadata.

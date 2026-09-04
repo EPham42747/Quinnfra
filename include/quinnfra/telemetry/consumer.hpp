@@ -7,7 +7,7 @@
 #include <utility>
 
 #include "detail/ring_buffer_mapping.hpp"
-#include "telemetry_event.hpp"
+#include "event.hpp"
 
 namespace telemetry {
 
