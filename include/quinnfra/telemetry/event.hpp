@@ -4,16 +4,16 @@
 
 #include "payloads.hpp"
 
-/// @file telemetry_event.hpp
+/// @file event.hpp
 /// @brief IPC telemetry event definitions and metadata.
 ///
 /// @details
 /// To add new events:
-///     - Create a new payload in `telemetry_payloads.hpp`
+///     - Create a new payload in `payloads.hpp`
 ///     - Map the payload into the `payload` union
 ///     - Add a unique identifier to `EventType`
+///     - Optionally, add human name to `name_of(EventType)` in `format.hpp`
 ///     - Ensure static assertions for size and trivial copyability pass
-///     - Create a new event handler in `src/telemetry/`
 
 namespace telemetry {
 

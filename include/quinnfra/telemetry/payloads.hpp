@@ -1,7 +1,7 @@
 #pragma once
 #include <cstdint>
 
-/// @file telemetry_payloads.hpp
+/// @file payloads.hpp
 /// @brief Payload definitions for telemetry events.
 ///
 /// @details

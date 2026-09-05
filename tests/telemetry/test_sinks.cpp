@@ -8,6 +8,7 @@
 #include <quinnfra/telemetry/event.hpp>
 #include <quinnfra/telemetry/payloads.hpp>
 #include <quinnfra/telemetry/sinks/binary_file_sink.hpp>
+#include <quinnfra/telemetry/sinks/text_file_sink.hpp>
 
 namespace telemetry::testing {
 
@@ -55,6 +56,39 @@ TEST(TelemetrySinkTest, BinaryFileSinkWritesExactBinaryRecords) {
     EXPECT_EQ(read_events[1].sequence_num, 1002);
     EXPECT_EQ(read_events[2].sequence_num, 1003);
     EXPECT_EQ(read_events[3].sequence_num, 1004);
+
+    file.close();
+    std::remove(filepath.c_str());
+}
+
+// 2. Text File Sink (Human-readable log line formatting)
+TEST(TelemetrySinkTest, TextFileSinkFormatsReadableLines) {
+    const std::string filepath = "test_telemetry_sink_" + std::to_string(::getpid()) + ".log";
+
+    {
+        TextFileSink sink(filepath, /*append=*/false);
+        ASSERT_TRUE(sink.is_open());
+
+        auto ev1 = make_event(1001);
+        ev1.level = LogLevel::INFO;
+
+        auto ev2 = make_event(1002);
+        ev2.level = LogLevel::ERROR;
+
+        sink.write(ev1);
+        sink.write(ev2);
+    }
+
+    std::ifstream file(filepath);
+    ASSERT_TRUE(file.is_open());
+
+    std::string line1;
+    std::string line2;
+    ASSERT_TRUE(std::getline(file, line1));
+    ASSERT_TRUE(std::getline(file, line2));
+
+    EXPECT_EQ(line1, "[1001000000 ns] [INFO] [SRC:UNKNOWN] [SEQ:1001] [HEARTBEAT]");
+    EXPECT_EQ(line2, "[1002000000 ns] [ERROR] [SRC:UNKNOWN] [SEQ:1002] [HEARTBEAT]");
 
     file.close();
     std::remove(filepath.c_str());
