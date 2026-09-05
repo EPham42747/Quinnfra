@@ -1,5 +1,3 @@
-#include <gtest/gtest.h>
-
 #include <atomic>
 #include <chrono>
 #include <cstddef>
@@ -12,6 +10,8 @@
 #include <immintrin.h>
 #endif
 
+#include <gtest/gtest.h>
+
 #include <quinnfra/telemetry/consumer.hpp>
 #include <quinnfra/telemetry/producer.hpp>
 #include <quinnfra/telemetry/event.hpp>
@@ -19,7 +19,7 @@
 
 namespace telemetry::testing {
 
-// Helper to construct deterministic TelemetryEvent instances matching telemetry_event.hpp
+namespace {
 TelemetryEvent make_event(uint32_t seq, EventType type = EventType::HEARTBEAT) {
     TelemetryEvent ev{};
     ev.timestamp_ns = 1'000'000ULL * seq;
@@ -30,6 +30,7 @@ TelemetryEvent make_event(uint32_t seq, EventType type = EventType::HEARTBEAT) {
     ev.payload.heartbeat = HeartbeatPayload{};
     return ev;
 }
+} // namespace
 
 
 // 1. Memory Layout & Cache Line False-Sharing Checks

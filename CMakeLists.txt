@@ -19,17 +19,30 @@ set(gtest_force_shared_crt ON CACHE BOOL "" FORCE) # For Windows MSVC runtime co
 FetchContent_MakeAvailable(googletest)
 include(GoogleTest)
 
+# Compile unit tests
 add_executable(unit_tests
-    tests/shared/test_telemetry_queue.cpp
+    tests/telemetry/test_queue.cpp
+    tests/telemetry/test_sinks.cpp
 )
-
 target_include_directories(unit_tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
-
 target_link_libraries(unit_tests PRIVATE
     GTest::gtest_main
     Threads::Threads
 )
 
 gtest_discover_tests(unit_tests)
+
+# Compile sample telemetry daemon
+# add_executable(telemetry_daemon
+#     src/telemetry/main.cpp
+# )
+# target_include_directories(telemetry_daemon PRIVATE
+#     ${CMAKE_CURRENT_SOURCE_DIR}/include
+#     ${CMAKE_CURRENT_SOURCE_DIR}/src
+# )
+# target_link_libraries(telemetry_daemon PRIVATE
+#     Threads::Threads
+# )
