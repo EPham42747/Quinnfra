@@ -36,13 +36,13 @@ target_link_libraries(unit_tests PRIVATE
 gtest_discover_tests(unit_tests)
 
 # Compile sample telemetry daemon
-# add_executable(telemetry_daemon
-#     src/telemetry/main.cpp
-# )
-# target_include_directories(telemetry_daemon PRIVATE
-#     ${CMAKE_CURRENT_SOURCE_DIR}/include
-#     ${CMAKE_CURRENT_SOURCE_DIR}/src
-# )
-# target_link_libraries(telemetry_daemon PRIVATE
-#     Threads::Threads
-# )
+add_executable(telemetry_daemon
+    src/telemetry/daemon.cpp
+)
+target_include_directories(telemetry_daemon PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+target_link_libraries(telemetry_daemon PRIVATE
+    Threads::Threads
+)
