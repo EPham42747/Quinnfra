@@ -7,7 +7,6 @@
 #include <utility>
 
 #include "detail/ring_buffer_mapping.hpp"
-#include "event.hpp"
 
 namespace telemetry {
 
@@ -70,7 +69,8 @@ private:
     std::optional<detail::RingBufferMapping<Layout>> shm_mapping_{std::nullopt};
 };
 
-/// @brief Consumer type for reading telemetry.
-using TelemetryConsumer = ConsumerView<TelemetryEvent, DEFAULT_QUEUE_CAPACITY>;
+/// @brief Consumer alias template for reading telemetry.
+template <typename T, size_t Capacity = DEFAULT_QUEUE_CAPACITY>
+using TelemetryConsumer = ConsumerView<T, Capacity>;
 
 } // namespace telemetry
