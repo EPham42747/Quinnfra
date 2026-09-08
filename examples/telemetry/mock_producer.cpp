@@ -7,10 +7,8 @@
 #include <string_view>
 #include <thread>
 
-#include <quinnfra/telemetry/event.hpp>
-#include <quinnfra/telemetry/format.hpp>
-#include <quinnfra/telemetry/payloads.hpp>
 #include <quinnfra/telemetry/producer.hpp>
+#include "event.hpp"
 
 namespace {
 std::atomic<bool> g_running{true};
@@ -34,7 +32,7 @@ int main(int argc, char* argv[]) {
 
     std::cout << "[Mock Producer] Creating shared memory segment: " << shm_name << "\n";
 
-    auto producer_opt = telemetry::TelemetryProducer::create(shm_name);
+    auto producer_opt = telemetry::TelemetryProducer<examples::ExampleEvent>::create(shm_name);
     if (!producer_opt.has_value()) {
         std::cerr << "[Mock Producer] FATAL: Failed to create shared memory segment "
                   << shm_name << " (segment may already exist or permission denied).\n";
@@ -45,29 +43,28 @@ int main(int argc, char* argv[]) {
     std::cout << "[Mock Producer] Queue initialized. Streaming events every 500ms (Ctrl+C to stop)...\n";
 
     std::uint32_t seq = 1;
-    const telemetry::LogLevel levels[] = {
-        telemetry::LogLevel::INFO,
-        telemetry::LogLevel::INFO,
-        telemetry::LogLevel::WARN,
-        telemetry::LogLevel::ERROR
+    const examples::LogLevel levels[] = {
+        examples::LogLevel::INFO,
+        examples::LogLevel::INFO,
+        examples::LogLevel::WARN,
+        examples::LogLevel::ERROR
     };
 
     while (g_running.load(std::memory_order_relaxed)) {
-        telemetry::TelemetryEvent ev{};
+        examples::ExampleEvent ev{};
         ev.timestamp_ns = static_cast<std::uint64_t>(
             std::chrono::duration_cast<std::chrono::nanoseconds>(
                 std::chrono::steady_clock::now().time_since_epoch()
             ).count()
         );
         ev.sequence_num = seq;
-        ev.source_id = telemetry::SourceId::UNKNOWN;
+        ev.source_id = 0;
         ev.level = levels[seq % 4];
-        ev.type = telemetry::EventType::HEARTBEAT;
-        ev.payload.heartbeat = telemetry::HeartbeatPayload{};
+        ev.type = examples::EventType::HEARTBEAT;
 
         if (producer.try_push(ev)) {
             std::cout << "[Mock Producer] Pushed event #" << seq
-                      << " [" << ev.level << "]\n";
+                      << " [" << examples::name_of(ev.level) << "]\n";
             ++seq;
         }
         else {

@@ -17,11 +17,11 @@
 #endif
 
 #include <quinnfra/telemetry/consumer.hpp>
-#include <quinnfra/telemetry/event.hpp>
 #include <quinnfra/telemetry/sinks/binary_file_sink.hpp>
 #include <quinnfra/telemetry/sinks/filtered_sink.hpp>
 #include <quinnfra/telemetry/sinks/sink.hpp>
 #include <quinnfra/telemetry/sinks/text_file_sink.hpp>
+#include "event.hpp"
 
 namespace {
 std::atomic<bool> g_running{true};
@@ -148,7 +148,7 @@ int main(int argc, char* argv[]) {
 
     // Attach to shared memory queue
     constexpr size_t QUEUE_CAPACITY = telemetry::DEFAULT_QUEUE_CAPACITY;
-    auto consumer_opt = telemetry::ConsumerView<telemetry::TelemetryEvent, QUEUE_CAPACITY>::attach(config.shm_name);
+    auto consumer_opt = telemetry::ConsumerView<examples::ExampleEvent, QUEUE_CAPACITY>::attach(config.shm_name);
 
     if (!consumer_opt.has_value()) {
         std::cerr << "[Telemetry Daemon] FATAL: Failed to attach to shared memory segment: "
@@ -159,11 +159,20 @@ int main(int argc, char* argv[]) {
     auto& consumer = *consumer_opt;
     std::cout << "[Telemetry Daemon] Attached successfully.\n";
 
+    // Create log file formatter
+    auto event_formatter = [](const examples::ExampleEvent& event) {
+        return "[" + std::to_string(event.timestamp_ns) + " ns] ["
+             + std::string(examples::name_of(event.level)) + "] [SRC:"
+             + std::to_string(event.source_id) + "] [SEQ:"
+             + std::to_string(event.sequence_num) + "] ["
+             + std::string(examples::name_of(event.type)) + "]\n";
+    };
+
     // Initialize sinks
-    std::vector<std::unique_ptr<telemetry::Sink>> sinks;
+    std::vector<std::unique_ptr<telemetry::Sink<examples::ExampleEvent>>> sinks;
 
     if (config.binary_log.has_value()) {
-        auto bin_sink = std::make_unique<telemetry::BinaryFileSink>(*config.binary_log);
+        auto bin_sink = std::make_unique<telemetry::BinaryFileSink<examples::ExampleEvent>>(*config.binary_log);
         if (bin_sink->is_open()) {
             std::cout << "[Telemetry Daemon] Registered Binary Sink: " << *config.binary_log << "\n";
             sinks.push_back(std::move(bin_sink));
@@ -174,7 +183,7 @@ int main(int argc, char* argv[]) {
     }
 
     if (config.text_log.has_value()) {
-        auto txt_sink = std::make_unique<telemetry::TextFileSink>(*config.text_log);
+        auto txt_sink = std::make_unique<telemetry::TextFileSink<examples::ExampleEvent>>(*config.text_log, event_formatter);
         if (txt_sink->is_open()) {
             std::cout << "[Telemetry Daemon] Registered Text Sink: " << *config.text_log << "\n";
             sinks.push_back(std::move(txt_sink));
@@ -185,10 +194,10 @@ int main(int argc, char* argv[]) {
     }
 
     if (config.error_log.has_value()) {
-        auto err_file = std::make_unique<telemetry::TextFileSink>(*config.error_log);
+        auto err_file = std::make_unique<telemetry::TextFileSink<examples::ExampleEvent>>(*config.error_log, event_formatter);
         if (err_file->is_open()) {
-            auto err_sink = std::make_unique<telemetry::FilteredSink>(
-                [](const telemetry::TelemetryEvent& ev) { return ev.level >= telemetry::LogLevel::WARN; },
+            auto err_sink = std::make_unique<telemetry::FilteredSink<examples::ExampleEvent>>(
+                [](const examples::ExampleEvent& ev) { return ev.level >= examples::LogLevel::WARN; },
                 std::move(err_file)
             );
             std::cout << "[Telemetry Daemon] Registered Error Sink (WARN+): " << *config.error_log << "\n";
