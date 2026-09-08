@@ -4,20 +4,20 @@
 #include <memory>
 #include <utility>
 
-#include <quinnfra/telemetry/event.hpp>
 #include <quinnfra/telemetry/sinks/sink.hpp>
 
 namespace telemetry {
 
 /// @brief Decorator that wraps an underlying Sink and filters events.
-class FilteredSink : public Sink {
+template <typename T>
+class FilteredSink : public Sink<T> {
 public:
-    using FilterRule = std::function<bool(const TelemetryEvent&)>;
+    using FilterRule = std::function<bool(const T&)>;
 
     /// @brief Constructs a FilteredSink with a custom filter rule.
     /// @param rule Callable returning true if the event should be forwarded, false to discard.
     /// @param inner_sink The downstream sink that receives events satisfying the rule.
-    explicit FilteredSink(FilterRule rule, std::unique_ptr<Sink> inner_sink)
+    explicit FilteredSink(FilterRule rule, std::unique_ptr<Sink<T>> inner_sink)
         : rule_{std::move(rule)}, inner_sink_{std::move(inner_sink)} {}
 
     ~FilteredSink() override = default;
@@ -31,14 +31,14 @@ public:
     FilteredSink& operator=(FilteredSink&&) noexcept = default;
 
     /// @brief Forwards the event to the inner sink if it satisfies the filter rule.
-    void write(const TelemetryEvent& event) override {
+    void write(const T& event) override {
         if (inner_sink_ && (!rule_ || rule_(event))) {
             inner_sink_->write(event);
         }
     }
 
     /// @brief Filters and forwards contiguous slices of events satisfying the filter rule.
-    void write(const TelemetryEvent* events, size_t count) override {
+    void write(const T* events, size_t count) override {
         if (!inner_sink_ || events == nullptr || count == 0) {
             return;
         }
@@ -72,7 +72,7 @@ public:
 
 private:
     FilterRule rule_;
-    std::unique_ptr<Sink> inner_sink_;
+    std::unique_ptr<Sink<T>> inner_sink_;
 };
 
 } // namespace telemetry
