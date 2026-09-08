@@ -1,14 +1,19 @@
 #pragma once
+#include <cstddef>
 #include <fstream>
 #include <string>
 #include <string_view>
+#include <type_traits>
 
 #include <quinnfra/telemetry/sinks/sink.hpp>
 
 namespace telemetry {
 
-/// @brief High-performance sink that dumps raw 64-byte TelemetryEvent structs to disk.
-class BinaryFileSink : public Sink {
+/// @brief High-performance sink that dumps raw binary representations of T to disk.
+template <typename T>
+class BinaryFileSink : public Sink<T> {
+    static_assert(std::is_trivially_copyable_v<T>, "T must be trivially copyable for BinaryFileSink");
+
 public:
     /// @brief Opens or creates a binary telemetry log file.
     /// @param filepath Path to the output binary file.
@@ -33,19 +38,19 @@ public:
         return stream_.is_open();
     }
 
-    /// @brief Writes a single 64-byte TelemetryEvent struct directly to the file.
-    void write(const TelemetryEvent& event) override {
+    /// @brief Writes a single event directly to the file as raw binary.
+    void write(const T& event) override {
         if (stream_.is_open()) {
-            stream_.write(reinterpret_cast<const char*>(&event), sizeof(TelemetryEvent));
+            stream_.write(reinterpret_cast<const char*>(&event), sizeof(T));
         }
     }
 
     /// @brief High-throughput batch write: dumps contiguous array of events in a single I/O call.
-    void write(const TelemetryEvent* events, size_t count) override {
+    void write(const T* events, size_t count) override {
         if (stream_.is_open() && events != nullptr && count > 0) {
             stream_.write(
                 reinterpret_cast<const char*>(events),
-                static_cast<std::streamsize>(sizeof(TelemetryEvent) * count)
+                static_cast<std::streamsize>(sizeof(T) * count)
             );
         }
     }

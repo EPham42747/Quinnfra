@@ -7,7 +7,6 @@
 #include <utility>
 
 #include "detail/ring_buffer_mapping.hpp"
-#include "event.hpp"
 
 namespace telemetry {
 
@@ -64,7 +63,8 @@ private:
     std::optional<detail::RingBufferMapping<Layout>> shm_mapping_{std::nullopt};
 };
 
-/// @brief Producer type for emitting telemetry.
-using TelemetryProducer = ProducerView<TelemetryEvent, DEFAULT_QUEUE_CAPACITY>;
+/// @brief Producer alias template for emitting telemetry.
+template <typename T, size_t Capacity = DEFAULT_QUEUE_CAPACITY>
+using TelemetryProducer = ProducerView<T, Capacity>;
 
 } // namespace telemetry
