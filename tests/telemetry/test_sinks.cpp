@@ -5,24 +5,46 @@
 
 #include <gtest/gtest.h>
 
-#include <quinnfra/telemetry/event.hpp>
-#include <quinnfra/telemetry/payloads.hpp>
 #include <quinnfra/telemetry/sinks/binary_file_sink.hpp>
 #include <quinnfra/telemetry/sinks/text_file_sink.hpp>
 #include <quinnfra/telemetry/sinks/filtered_sink.hpp>
+#include "test_event.hpp"
 
 namespace telemetry::testing {
 
 namespace {
-TelemetryEvent make_event(uint32_t seq, EventType type = EventType::HEARTBEAT) {
-    TelemetryEvent ev{};
+TestEvent make_event(uint32_t seq, TestEventType type = TestEventType::HEARTBEAT) {
+    TestEvent ev{};
     ev.timestamp_ns = 1'000'000ULL * seq;
     ev.sequence_num = seq;
-    ev.source_id = SourceId::UNKNOWN;
-    ev.level = LogLevel::INFO;
+    ev.source_id = 0;
+    ev.level = TestLogLevel::INFO;
     ev.type = type;
-    ev.payload.heartbeat = HeartbeatPayload{};
     return ev;
+}
+
+std::string format_test_event(const TestEvent& ev) {
+    std::string level_str;
+    switch (ev.level) {
+        case TestLogLevel::DEBUG: level_str = "DEBUG"; break;
+        case TestLogLevel::INFO:  level_str = "INFO"; break;
+        case TestLogLevel::WARN:  level_str = "WARN"; break;
+        case TestLogLevel::ERROR: level_str = "ERROR"; break;
+        case TestLogLevel::FATAL: level_str = "FATAL"; break;
+        default:                  level_str = "UNKNOWN"; break;
+    }
+
+    std::string type_str;
+    switch (ev.type) {
+        case TestEventType::HEARTBEAT: type_str = "HEARTBEAT"; break;
+        case TestEventType::METRIC:    type_str = "METRIC"; break;
+        case TestEventType::LOG:       type_str = "LOG"; break;
+        default:                       type_str = "UNKNOWN"; break;
+    }
+
+    return "[" + std::to_string(ev.timestamp_ns) + " ns] ["
+         + level_str + "] [SRC:" + std::to_string(ev.source_id) + "] [SEQ:"
+         + std::to_string(ev.sequence_num) + "] [" + type_str + "]\n";
 }
 } // namespace
 
@@ -32,7 +54,7 @@ TEST(TelemetrySinkTest, BinaryFileSinkWritesExactBinaryRecords) {
 
     // Scope the sink so it flushes and closes
     {
-        BinaryFileSink sink(filepath, false);
+        BinaryFileSink<TestEvent> sink(filepath, false);
         ASSERT_TRUE(sink.is_open());
 
         auto ev1 = make_event(1001);
@@ -41,7 +63,7 @@ TEST(TelemetrySinkTest, BinaryFileSinkWritesExactBinaryRecords) {
         sink.write(ev2);
 
         // Test batch write
-        TelemetryEvent batch[2] = {make_event(1003), make_event(1004)};
+        TestEvent batch[2] = {make_event(1003), make_event(1004)};
         sink.write(batch, 2);
     }
 
@@ -49,9 +71,9 @@ TEST(TelemetrySinkTest, BinaryFileSinkWritesExactBinaryRecords) {
     std::ifstream file(filepath, std::ios::binary);
     ASSERT_TRUE(file.is_open());
 
-    TelemetryEvent read_events[4]{};
+    TestEvent read_events[4]{};
     file.read(reinterpret_cast<char*>(read_events), sizeof(read_events));
-    EXPECT_EQ(file.gcount(), static_cast<std::streamsize>(4 * sizeof(TelemetryEvent)));
+    EXPECT_EQ(file.gcount(), static_cast<std::streamsize>(4 * sizeof(TestEvent)));
 
     EXPECT_EQ(read_events[0].sequence_num, 1001);
     EXPECT_EQ(read_events[1].sequence_num, 1002);
@@ -67,14 +89,14 @@ TEST(TelemetrySinkTest, TextFileSinkFormatsReadableLines) {
     const std::string filepath = "test_telemetry_sink_" + std::to_string(::getpid()) + ".log";
 
     {
-        TextFileSink sink(filepath, /*append=*/false);
+        TextFileSink<TestEvent> sink(filepath, format_test_event, false);
         ASSERT_TRUE(sink.is_open());
 
         auto ev1 = make_event(1001);
-        ev1.level = LogLevel::INFO;
+        ev1.level = TestLogLevel::INFO;
 
         auto ev2 = make_event(1002);
-        ev2.level = LogLevel::ERROR;
+        ev2.level = TestLogLevel::ERROR;
 
         sink.write(ev1);
         sink.write(ev2);
@@ -88,8 +110,8 @@ TEST(TelemetrySinkTest, TextFileSinkFormatsReadableLines) {
     ASSERT_TRUE(std::getline(file, line1));
     ASSERT_TRUE(std::getline(file, line2));
 
-    EXPECT_EQ(line1, "[1001000000 ns] [INFO] [SRC:UNKNOWN] [SEQ:1001] [HEARTBEAT]");
-    EXPECT_EQ(line2, "[1002000000 ns] [ERROR] [SRC:UNKNOWN] [SEQ:1002] [HEARTBEAT]");
+    EXPECT_EQ(line1, "[1001000000 ns] [INFO] [SRC:0] [SEQ:1001] [HEARTBEAT]");
+    EXPECT_EQ(line2, "[1002000000 ns] [ERROR] [SRC:0] [SEQ:1002] [HEARTBEAT]");
 
     file.close();
     std::remove(filepath.c_str());
@@ -100,18 +122,18 @@ TEST(TelemetrySinkTest, FilteredSinkCustomRuleMatchesMultipleFields) {
     const std::string filepath = "test_telemetry_custom_filter_" + std::to_string(::getpid()) + ".log";
 
     {
-        // Rule: Only keep events with odd sequence numbers AND level == LogLevel::INFO
-        FilteredSink::FilterRule custom_rule = [](const TelemetryEvent& ev) {
-            return (ev.sequence_num % 2 != 0) && (ev.level == LogLevel::INFO);
+        // Rule: Only keep events with odd sequence numbers AND level == TestLogLevel::INFO
+        FilteredSink<TestEvent>::FilterRule custom_rule = [](const TestEvent& ev) {
+            return (ev.sequence_num % 2 != 0) && (ev.level == TestLogLevel::INFO);
         };
 
-        auto inner = std::make_unique<TextFileSink>(filepath, false);
-        FilteredSink filter(std::move(custom_rule), std::move(inner));
+        auto inner = std::make_unique<TextFileSink<TestEvent>>(filepath, format_test_event, false);
+        FilteredSink<TestEvent> filter(std::move(custom_rule), std::move(inner));
 
         auto ev1 = make_event(3001); // odd, INFO -> KEEP
         auto ev2 = make_event(3002); // even, INFO -> DISCARD
         auto ev3 = make_event(3003); // odd, WARN -> DISCARD
-        ev3.level = LogLevel::WARN;
+        ev3.level = TestLogLevel::WARN;
         auto ev4 = make_event(3005); // odd, INFO -> KEEP
 
         filter.write(ev1);
@@ -131,8 +153,8 @@ TEST(TelemetrySinkTest, FilteredSinkCustomRuleMatchesMultipleFields) {
     ASSERT_TRUE(std::getline(file, line2));
     EXPECT_FALSE(std::getline(file, line3));
 
-    EXPECT_EQ(line1, "[3001000000 ns] [INFO] [SRC:UNKNOWN] [SEQ:3001] [HEARTBEAT]");
-    EXPECT_EQ(line2, "[3005000000 ns] [INFO] [SRC:UNKNOWN] [SEQ:3005] [HEARTBEAT]");
+    EXPECT_EQ(line1, "[3001000000 ns] [INFO] [SRC:0] [SEQ:3001] [HEARTBEAT]");
+    EXPECT_EQ(line2, "[3005000000 ns] [INFO] [SRC:0] [SEQ:3005] [HEARTBEAT]");
 
     file.close();
     std::remove(filepath.c_str());
@@ -143,10 +165,10 @@ TEST(TelemetrySinkTest, FilteredSinkBatchRunLengthSlicing) {
     const std::string filepath = "test_telemetry_batch_filter_" + std::to_string(::getpid()) + ".bin";
 
     {
-        auto inner = std::make_unique<BinaryFileSink>(filepath, false);
-        FilteredSink filter([](const TelemetryEvent& ev) { return ev.level >= LogLevel::INFO; }, std::move(inner));
+        auto inner = std::make_unique<BinaryFileSink<TestEvent>>(filepath, false);
+        FilteredSink<TestEvent> filter([](const TestEvent& ev) { return ev.level >= TestLogLevel::INFO; }, std::move(inner));
 
-        TelemetryEvent batch[6] = {
+        TestEvent batch[6] = {
             make_event(4001), // INFO -> PASS (run 1 start)
             make_event(4002), // INFO -> PASS (run 1 len=2)
             make_event(4003), // DEBUG -> DROP (run 1 flushed, hole)
@@ -154,8 +176,8 @@ TEST(TelemetrySinkTest, FilteredSinkBatchRunLengthSlicing) {
             make_event(4005), // INFO -> PASS (run 2 len=2)
             make_event(4006)  // DEBUG -> DROP (run 2 flushed, hole)
         };
-        batch[2].level = LogLevel::DEBUG;
-        batch[5].level = LogLevel::DEBUG;
+        batch[2].level = TestLogLevel::DEBUG;
+        batch[5].level = TestLogLevel::DEBUG;
 
         filter.write(batch, 6);
     }
@@ -163,9 +185,9 @@ TEST(TelemetrySinkTest, FilteredSinkBatchRunLengthSlicing) {
     std::ifstream file(filepath, std::ios::binary);
     ASSERT_TRUE(file.is_open());
 
-    TelemetryEvent read_events[4]{};
+    TestEvent read_events[4]{};
     file.read(reinterpret_cast<char*>(read_events), sizeof(read_events));
-    EXPECT_EQ(file.gcount(), static_cast<std::streamsize>(4 * sizeof(TelemetryEvent)));
+    EXPECT_EQ(file.gcount(), static_cast<std::streamsize>(4 * sizeof(TestEvent)));
 
     EXPECT_EQ(read_events[0].sequence_num, 4001);
     EXPECT_EQ(read_events[1].sequence_num, 4002);
