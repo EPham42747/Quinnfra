@@ -17,6 +17,14 @@ cmake -B build
 cmake --build build
 ```
 
+## Performance
+
+* **Producer `try_push()` Overhead:** **~1.8 ns** (~560M events/sec)
+* **Concurrent SPSC Throughput:** **~191M events/sec** (~12.2 GB/s)
+* **Jitter & Tail Predictability:** Standard deviation <0.1 ns (<3.5% CV)
+
+See [**Benchmarks**](benchmarks/README.md) for more detail.
+
 ## Developer Guide
 
 ### Define an Event

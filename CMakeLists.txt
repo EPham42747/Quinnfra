@@ -34,6 +34,26 @@ target_link_libraries(unit_tests PRIVATE
 
 gtest_discover_tests(unit_tests)
 
+# Enable googlebenchmark
+FetchContent_Declare(
+    googlebenchmark
+    URL https://github.com/google/benchmark/archive/refs/tags/v1.8.3.zip
+)
+set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(googlebenchmark)
+
+# Compile benchmarks
+add_executable(benchmarks
+    benchmarks/telemetry/bench_queue.cpp
+)
+target_include_directories(benchmarks PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+target_link_libraries(benchmarks PRIVATE
+    benchmark::benchmark_main
+    Threads::Threads
+)
+
 # Compile example telemetry daemon
 add_executable(telemetry_daemon
     examples/telemetry/daemon.cpp
