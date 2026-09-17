@@ -10,7 +10,7 @@
 #include <quinnfra/telemetry/sinks/filtered_sink.hpp>
 #include "test_event.hpp"
 
-namespace telemetry::testing {
+namespace quinnfra::telemetry::testing {
 
 namespace {
 TestEvent make_event(uint32_t seq, TestEventType type = TestEventType::HEARTBEAT) {
@@ -198,4 +198,4 @@ TEST(TelemetrySinkTest, FilteredSinkBatchRunLengthSlicing) {
     std::remove(filepath.c_str());
 }
 
-} // namespace telemetry::testing
+} // namespace quinnfra::telemetry::testing
