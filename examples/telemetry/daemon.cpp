@@ -169,10 +169,10 @@ int main(int argc, char* argv[]) {
     };
 
     // Initialize sinks
-    std::vector<std::unique_ptr<telemetry::Sink<examples::ExampleEvent>>> sinks;
+    std::vector<std::unique_ptr<quinnfra::telemetry::Sink<examples::ExampleEvent>>> sinks;
 
     if (config.binary_log.has_value()) {
-        auto bin_sink = std::make_unique<telemetry::BinaryFileSink<examples::ExampleEvent>>(*config.binary_log);
+        auto bin_sink = std::make_unique<quinnfra::telemetry::BinaryFileSink<examples::ExampleEvent>>(*config.binary_log);
         if (bin_sink->is_open()) {
             std::cout << "[Telemetry Daemon] Registered Binary Sink: " << *config.binary_log << "\n";
             sinks.push_back(std::move(bin_sink));
@@ -183,7 +183,7 @@ int main(int argc, char* argv[]) {
     }
 
     if (config.text_log.has_value()) {
-        auto txt_sink = std::make_unique<telemetry::TextFileSink<examples::ExampleEvent>>(*config.text_log, event_formatter);
+        auto txt_sink = std::make_unique<quinnfra::telemetry::TextFileSink<examples::ExampleEvent>>(*config.text_log, event_formatter);
         if (txt_sink->is_open()) {
             std::cout << "[Telemetry Daemon] Registered Text Sink: " << *config.text_log << "\n";
             sinks.push_back(std::move(txt_sink));
@@ -194,9 +194,9 @@ int main(int argc, char* argv[]) {
     }
 
     if (config.error_log.has_value()) {
-        auto err_file = std::make_unique<telemetry::TextFileSink<examples::ExampleEvent>>(*config.error_log, event_formatter);
+        auto err_file = std::make_unique<quinnfra::telemetry::TextFileSink<examples::ExampleEvent>>(*config.error_log, event_formatter);
         if (err_file->is_open()) {
-            auto err_sink = std::make_unique<telemetry::FilteredSink<examples::ExampleEvent>>(
+            auto err_sink = std::make_unique<quinnfra::telemetry::FilteredSink<examples::ExampleEvent>>(
                 [](const examples::ExampleEvent& ev) { return ev.level >= examples::LogLevel::WARN; },
                 std::move(err_file)
             );

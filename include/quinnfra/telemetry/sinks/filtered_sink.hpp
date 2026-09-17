@@ -6,7 +6,7 @@
 
 #include <quinnfra/telemetry/sinks/sink.hpp>
 
-namespace telemetry {
+namespace quinnfra::telemetry {
 
 /// @brief Decorator that wraps an underlying Sink and filters events.
 template <typename T>
@@ -75,4 +75,4 @@ private:
     std::unique_ptr<Sink<T>> inner_sink_;
 };
 
-} // namespace telemetry
+} // namespace quinnfra::telemetry

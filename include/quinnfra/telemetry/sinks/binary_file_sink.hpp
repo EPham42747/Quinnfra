@@ -7,7 +7,7 @@
 
 #include <quinnfra/telemetry/sinks/sink.hpp>
 
-namespace telemetry {
+namespace quinnfra::telemetry {
 
 /// @brief High-performance sink that dumps raw binary representations of T to disk.
 template <typename T>
@@ -66,5 +66,5 @@ private:
     std::ofstream stream_;
 };
 
-} // namespace telemetry
+} // namespace quinnfra::telemetry
 

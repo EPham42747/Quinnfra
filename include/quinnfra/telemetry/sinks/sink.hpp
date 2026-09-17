@@ -1,7 +1,7 @@
 #pragma once
 #include <cstddef>
 
-namespace telemetry {
+namespace quinnfra::telemetry {
 
 /// @brief Abstract base class for telemetry event consumers and exporters.
 template <typename T>
@@ -28,4 +28,4 @@ public:
     virtual void flush() {}
 };
 
-} // namespace telemetry
+} // namespace quinnfra::telemetry
