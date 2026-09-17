@@ -35,6 +35,4 @@ struct RingBufferLayout {
 
 } // namespace detail
 
-using detail::RingBufferLayout;
-
 } // namespace quinnfra::ipc
