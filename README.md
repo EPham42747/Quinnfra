@@ -60,7 +60,7 @@ Create an event and call `try_push()`:
 ```cpp
 Event ev{};
 ev.timestamp_ns = getCurrentNanos();
-ev.sequence_num = seq++;
+ev.seq = 0;
 
 if (!producer->try_push(ev)) {
     // Queue is full
