@@ -22,6 +22,7 @@ include(GoogleTest)
 # Compile unit tests
 add_executable(unit_tests
     tests/ipc/test_spsc_queue.cpp
+    tests/net/test_multicast_receiver.cpp
     tests/telemetry/test_sinks.cpp
 )
 target_include_directories(unit_tests PRIVATE
