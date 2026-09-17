@@ -1,11 +1,3 @@
-#include <atomic>
-#include <cstddef>
-#include <cstdint>
-#include <memory>
-#include <type_traits>
-
-#include <benchmark/benchmark.h>
-
 #if defined(__x86_64__) || defined(_M_X64)
 #include <immintrin.h>
 #define CPU_PAUSE() _mm_pause()
@@ -15,39 +7,44 @@
 #define CPU_PAUSE() ((void)0)
 #endif
 
-#include <quinnfra/telemetry/consumer.hpp>
-#include <quinnfra/telemetry/producer.hpp>
+#include <atomic>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <type_traits>
 
-namespace telemetry::benchmarking {
+#include <benchmark/benchmark.h>
 
-struct alignas(64) BenchEvent {
+#include <quinnfra/core/alignment.hpp>
+#include <quinnfra/ipc/spsc_consumer.hpp>
+#include <quinnfra/ipc/spsc_producer.hpp>
+
+namespace quinnfra::ipc::benchmarking {
+
+struct alignas(64) BenchMessage {
     uint64_t timestamp_ns{0};
-    uint32_t sequence_num{0};
-    uint16_t source_id{1};
-    uint8_t  level{1};
-    uint8_t  type{0};
-    uint8_t  payload[48]{0};
+    uint32_t seq{0};
+    uint8_t  payload[52]{0};
 };
 
-static_assert(sizeof(BenchEvent) == 64, "BenchEvent must by 64 bytes");
-static_assert(std::is_trivially_copyable_v<BenchEvent>, "BenchEvent must be trivially copyable");
+static_assert(sizeof(BenchMessage) == 64, "BenchMessage must be 64 bytes");
+static_assert(std::is_trivially_copyable_v<BenchMessage>, "BenchMessage must be trivially copyable");
 
-constexpr size_t DefaultCapacity = telemetry::DEFAULT_QUEUE_CAPACITY;
+constexpr size_t DefaultCapacity = quinnfra::ipc::DEFAULT_QUEUE_CAPACITY;
 constexpr size_t BatchChunkSize  = DefaultCapacity / 4; // 16,384
 constexpr size_t BatchMask       = BatchChunkSize - 1;  // 0x3FFF
 
-
 // 1. Producer try_push() Latency
 void BM_Producer_TryPush_Latency(benchmark::State& state) {
-    auto layout = std::make_unique<telemetry::detail::RingBufferLayout<BenchEvent, DefaultCapacity>>();
-    telemetry::ProducerView<BenchEvent, DefaultCapacity> producer(layout.get());
-    telemetry::ConsumerView<BenchEvent, DefaultCapacity> consumer(layout.get());
+    auto layout = std::make_unique<detail::RingBufferLayout<BenchMessage, DefaultCapacity>>();
+    SpscProducer<BenchMessage, DefaultCapacity> producer(layout.get());
+    SpscConsumer<BenchMessage, DefaultCapacity> consumer(layout.get());
 
-    BenchEvent ev{};
+    BenchMessage ev{};
     uint32_t seq = 0;
 
     for (auto _ : state) {
-        ev.sequence_num = ++seq;
+        ev.seq = ++seq;
         benchmark::DoNotOptimize(producer.try_push(ev));
 
         // Periodically drain without counting drain time in latency measurement
@@ -66,17 +63,17 @@ BENCHMARK(BM_Producer_TryPush_Latency);
 
 // 2. Consumer front() + pop() Latency
 void BM_Consumer_FrontAndPop_Latency(benchmark::State& state) {
-    auto layout = std::make_unique<telemetry::detail::RingBufferLayout<BenchEvent, DefaultCapacity>>();
-    telemetry::ProducerView<BenchEvent, DefaultCapacity> producer(layout.get());
-    telemetry::ConsumerView<BenchEvent, DefaultCapacity> consumer(layout.get());
+    auto layout = std::make_unique<detail::RingBufferLayout<BenchMessage, DefaultCapacity>>();
+    SpscProducer<BenchMessage, DefaultCapacity> producer(layout.get());
+    SpscConsumer<BenchMessage, DefaultCapacity> consumer(layout.get());
 
-    BenchEvent ev{};
+    BenchMessage ev{};
     uint32_t seq = 0;
 
     // Helper lambda to fill queue
     auto fill_queue = [&]() {
         for (size_t i = 0; i < BatchChunkSize; ++i) {
-            ev.sequence_num = ++seq;
+            ev.seq = ++seq;
             (void)producer.try_push(ev);
         }
     };
@@ -102,15 +99,15 @@ BENCHMARK(BM_Consumer_FrontAndPop_Latency);
 
 // 3. Round-Trip try_push() + pop() Latency
 void BM_Queue_PushAndPop_Latency(benchmark::State& state) {
-    auto layout = std::make_unique<telemetry::detail::RingBufferLayout<BenchEvent, DefaultCapacity>>();
-    telemetry::ProducerView<BenchEvent, DefaultCapacity> producer(layout.get());
-    telemetry::ConsumerView<BenchEvent, DefaultCapacity> consumer(layout.get());
+    auto layout = std::make_unique<detail::RingBufferLayout<BenchMessage, DefaultCapacity>>();
+    SpscProducer<BenchMessage, DefaultCapacity> producer(layout.get());
+    SpscConsumer<BenchMessage, DefaultCapacity> consumer(layout.get());
 
-    BenchEvent ev{};
+    BenchMessage ev{};
     uint32_t seq = 0;
 
     for (auto _ : state) {
-        ev.sequence_num = ++seq;
+        ev.seq = ++seq;
         benchmark::DoNotOptimize(producer.try_push(ev));
         const auto* item = consumer.front();
         benchmark::DoNotOptimize(item);
@@ -123,9 +120,9 @@ BENCHMARK(BM_Queue_PushAndPop_Latency);
 
 // 4. Queue Throughput
 struct ConcurrentFixture {
-    std::unique_ptr<telemetry::detail::RingBufferLayout<BenchEvent, DefaultCapacity>> layout;
-    std::unique_ptr<telemetry::ProducerView<BenchEvent, DefaultCapacity>> producer;
-    std::unique_ptr<telemetry::ConsumerView<BenchEvent, DefaultCapacity>> consumer;
+    std::unique_ptr<detail::RingBufferLayout<BenchMessage, DefaultCapacity>> layout;
+    std::unique_ptr<SpscProducer<BenchMessage, DefaultCapacity>> producer;
+    std::unique_ptr<SpscConsumer<BenchMessage, DefaultCapacity>> consumer;
     std::atomic<bool> producer_active{false};
 
     ConcurrentFixture() {
@@ -133,9 +130,9 @@ struct ConcurrentFixture {
     }
 
     void reset() {
-        layout = std::make_unique<telemetry::detail::RingBufferLayout<BenchEvent, DefaultCapacity>>();
-        producer = std::make_unique<telemetry::ProducerView<BenchEvent, DefaultCapacity>>(layout.get());
-        consumer = std::make_unique<telemetry::ConsumerView<BenchEvent, DefaultCapacity>>(layout.get());
+        layout = std::make_unique<detail::RingBufferLayout<BenchMessage, DefaultCapacity>>();
+        producer = std::make_unique<SpscProducer<BenchMessage, DefaultCapacity>>(layout.get());
+        consumer = std::make_unique<SpscConsumer<BenchMessage, DefaultCapacity>>(layout.get());
         producer_active.store(false, std::memory_order_relaxed);
     }
 };
@@ -146,11 +143,11 @@ void BM_SPSC_Concurrent_Throughput(benchmark::State& state) {
     if (state.thread_index() == 0) {
         // Producer thread
         g_concurrent_fixture.producer_active.store(true, std::memory_order_release);
-        BenchEvent ev{};
+        BenchMessage ev{};
         uint32_t seq = 0;
 
         for (auto _ : state) {
-            ev.sequence_num = ++seq;
+            ev.seq = ++seq;
             while (!g_concurrent_fixture.producer->try_push(ev)) {
                 CPU_PAUSE();
             }
@@ -189,4 +186,4 @@ void BM_SPSC_Concurrent_Throughput(benchmark::State& state) {
 }
 BENCHMARK(BM_SPSC_Concurrent_Throughput)->Threads(2);
 
-} // namespace telemetry::benchmarking
+} // namespace quinnfra::ipc::benchmarking

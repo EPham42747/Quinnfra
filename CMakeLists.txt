@@ -44,7 +44,7 @@ FetchContent_MakeAvailable(googlebenchmark)
 
 # Compile benchmarks
 add_executable(benchmarks
-    benchmarks/telemetry/bench_queue.cpp
+    benchmarks/ipc/bench_spsc_queue.cpp
 )
 target_include_directories(benchmarks PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
