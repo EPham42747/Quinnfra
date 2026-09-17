@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <string>
 
-namespace quinnfra::mktdata {
+namespace quinnfra::net {
 
 struct MulticastConfig {
     std::string multicast_group;                       // Multicast IPv4 address (e.g. "239.255.0.1")
@@ -18,4 +18,4 @@ struct MulticastConfig {
     bool operator==(const MulticastConfig&) const = default;
 };
 
-} // namespace quinnfra::mktdata
+} // namespace quinnfra::net

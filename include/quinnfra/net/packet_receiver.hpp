@@ -5,7 +5,7 @@
 #include <optional>
 #include <span>
 
-namespace quinnfra::mktdata {
+namespace quinnfra::net {
 
 /**
  * @brief Concept for zero-allocation packet receivers.
@@ -19,4 +19,4 @@ concept PacketReceiver = requires(T receiver, std::span<uint8_t> buffer) {
     { receiver.receive(buffer) } -> std::same_as<std::optional<size_t>>;
 };
 
-} // namespace quinnfra::mktdata
+} // namespace quinnfra::net
