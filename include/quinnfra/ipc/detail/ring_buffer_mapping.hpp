@@ -1,19 +1,20 @@
 #pragma once
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
 #include <atomic>
 #include <cerrno>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
-#include <fcntl.h>
 #include <memory>
 #include <new>
 #include <optional>
 #include <string>
 #include <string_view>
-#include <sys/mman.h>
-#include <sys/stat.h>
 #include <type_traits>
-#include <unistd.h>
 #include <utility>
 
 #include "ring_buffer_layout.hpp"

@@ -1,3 +1,7 @@
+#if defined(__x86_64__) || defined(_M_X64)
+#include <immintrin.h>
+#endif
+
 #include <atomic>
 #include <cerrno>
 #include <chrono>
@@ -11,10 +15,6 @@
 #include <string_view>
 #include <thread>
 #include <vector>
-
-#if defined(__x86_64__) || defined(_M_X64)
-#include <immintrin.h>
-#endif
 
 #include <quinnfra/telemetry/consumer.hpp>
 #include <quinnfra/telemetry/sinks/binary_file_sink.hpp>

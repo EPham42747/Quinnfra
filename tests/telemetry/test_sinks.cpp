@@ -1,13 +1,14 @@
+#include <unistd.h>
+
 #include <cstdint>
 #include <fstream>
 #include <string>
-#include <unistd.h>
 
 #include <gtest/gtest.h>
 
 #include <quinnfra/telemetry/sinks/binary_file_sink.hpp>
-#include <quinnfra/telemetry/sinks/text_file_sink.hpp>
 #include <quinnfra/telemetry/sinks/filtered_sink.hpp>
+#include <quinnfra/telemetry/sinks/text_file_sink.hpp>
 #include "test_event.hpp"
 
 namespace quinnfra::telemetry::testing {
