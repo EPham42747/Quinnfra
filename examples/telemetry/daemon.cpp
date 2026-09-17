@@ -147,8 +147,8 @@ int main(int argc, char* argv[]) {
               << "[Telemetry Daemon] Connecting to segment: " << config.shm_name << "\n";
 
     // Attach to shared memory queue
-    constexpr size_t QUEUE_CAPACITY = telemetry::DEFAULT_QUEUE_CAPACITY;
-    auto consumer_opt = telemetry::ConsumerView<examples::ExampleEvent, QUEUE_CAPACITY>::attach(config.shm_name);
+    constexpr size_t QUEUE_CAPACITY = quinnfra::ipc::DEFAULT_QUEUE_CAPACITY;
+    auto consumer_opt = quinnfra::telemetry::TelemetryConsumer<examples::ExampleEvent, QUEUE_CAPACITY>::attach(config.shm_name);
 
     if (!consumer_opt.has_value()) {
         std::cerr << "[Telemetry Daemon] FATAL: Failed to attach to shared memory segment: "
