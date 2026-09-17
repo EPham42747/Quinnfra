@@ -24,9 +24,9 @@ namespace quinnfra::net {
  * Implements the PacketReceiver concept. Manages socket lifecycle, multicast group membership,
  * and non-blocking packet polling.
  */
-class PosixMulticastReceiver {
+class MulticastReceiver {
 public:
-    ~PosixMulticastReceiver() {
+    ~MulticastReceiver() {
         if (fd_ >= 0) {
             ::close(fd_);
             fd_ = -1;
@@ -34,17 +34,17 @@ public:
     }
 
     // Delete copy semantics
-    PosixMulticastReceiver(const PosixMulticastReceiver&) = delete;
-    PosixMulticastReceiver& operator=(const PosixMulticastReceiver&) = delete;
+    MulticastReceiver(const MulticastReceiver&) = delete;
+    MulticastReceiver& operator=(const MulticastReceiver&) = delete;
 
     // Move constructor
-    PosixMulticastReceiver(PosixMulticastReceiver&& other) noexcept
+    MulticastReceiver(MulticastReceiver&& other) noexcept
         : fd_{other.fd_} {
         other.fd_ = -1;
     }
 
     // Move assignment overload
-    PosixMulticastReceiver& operator=(PosixMulticastReceiver&& other) noexcept {
+    MulticastReceiver& operator=(MulticastReceiver&& other) noexcept {
         if (this != &other) {
             if (fd_ >= 0) {
                 ::close(fd_);
@@ -58,7 +58,7 @@ public:
     /// @brief Factory creating and initializing a POSIX multicast receiver socket.
     /// @param config Multicast network configuration.
     /// @return Initialized receiver if successful, std::nullopt otherwise.
-    [[nodiscard]] static std::optional<PosixMulticastReceiver> create(const MulticastConfig& config) {
+    [[nodiscard]] static std::optional<MulticastReceiver> create(const MulticastConfig& config) {
         // Convert multicast group IP to binary
         in_addr group_addr{};
         if (::inet_pton(AF_INET, config.multicast_group.c_str(), &group_addr) != 1) {
@@ -144,7 +144,7 @@ public:
             ::close(fd);
             return std::nullopt;
         }
-        return PosixMulticastReceiver(fd);
+        return MulticastReceiver(fd);
     }
 
     /// @brief Polls for an incoming datagram into a caller-supplied buffer without blocking.
@@ -168,12 +168,12 @@ public:
     }
 
 private:
-    explicit PosixMulticastReceiver(int fd) noexcept
+    explicit MulticastReceiver(int fd) noexcept
         : fd_{fd} {}
 
     int fd_{-1};
 };
 
-static_assert(PacketReceiver<PosixMulticastReceiver>, "PosixMulticastReceiver must satisfy PacketReceiver");
+static_assert(PacketReceiver<MulticastReceiver>, "MulticastReceiver must satisfy PacketReceiver");
 
 } // namespace quinnfra::net

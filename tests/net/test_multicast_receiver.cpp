@@ -21,8 +21,8 @@ namespace quinnfra::net::testing {
     
 namespace {
 
-// Validate PosixMulticastReceiver
-static_assert(PacketReceiver<PosixMulticastReceiver>, "PosixMulticastReceiver must satisfy PacketReceiver concept");
+// Validate MulticastReceiver
+static_assert(PacketReceiver<MulticastReceiver>, "MulticastReceiver must satisfy PacketReceiver concept");
 
 struct MockCustomReceiver {
     std::optional<size_t> receive(std::span<uint8_t> buffer) {
@@ -65,13 +65,13 @@ TEST(MulticastReceiverTest, FactoryValidatesInvalidIpAddresses) {
     MulticastConfig bad_group{};
     bad_group.multicast_group = "999.999.999.999";
     bad_group.port = 30001;
-    EXPECT_FALSE(PosixMulticastReceiver::create(bad_group).has_value());
+    EXPECT_FALSE(MulticastReceiver::create(bad_group).has_value());
 
     MulticastConfig bad_iface{};
     bad_iface.multicast_group = "239.255.0.1";
     bad_iface.interface_ip = "invalid-interface-ip";
     bad_iface.port = 30002;
-    EXPECT_FALSE(PosixMulticastReceiver::create(bad_iface).has_value());
+    EXPECT_FALSE(MulticastReceiver::create(bad_iface).has_value());
 }
 
 TEST(MulticastReceiverTest, NonBlockingEmptySocketReturnsNullopt) {
@@ -80,7 +80,7 @@ TEST(MulticastReceiverTest, NonBlockingEmptySocketReturnsNullopt) {
     config.port = 30010;
     config.interface_ip = "127.0.0.1";
 
-    auto receiver = PosixMulticastReceiver::create(config);
+    auto receiver = MulticastReceiver::create(config);
     ASSERT_TRUE(receiver.has_value());
 
     std::array<uint8_t, 1500> buffer{};
@@ -94,7 +94,7 @@ TEST(MulticastReceiverTest, LoopbackSendAndReceiveExactPayload) {
     config.port = 30020;
     config.interface_ip = "127.0.0.1";
 
-    auto receiver = PosixMulticastReceiver::create(config);
+    auto receiver = MulticastReceiver::create(config);
     ASSERT_TRUE(receiver.has_value());
 
     const std::string payload = "SAMPLE_PAYLOAD";
@@ -127,18 +127,18 @@ TEST(MulticastReceiverTest, MoveSemanticsTransferDescriptor) {
     config.port = 30040;
     config.interface_ip = "127.0.0.1";
 
-    auto receiver1 = PosixMulticastReceiver::create(config);
+    auto receiver1 = MulticastReceiver::create(config);
     ASSERT_TRUE(receiver1.has_value());
     int original_fd = receiver1->native_handle();
     EXPECT_GE(original_fd, 0);
 
     // Move construct
-    PosixMulticastReceiver receiver2(std::move(*receiver1));
+    MulticastReceiver receiver2(std::move(*receiver1));
     EXPECT_EQ(receiver1->native_handle(), -1);
     EXPECT_EQ(receiver2.native_handle(), original_fd);
 
     // Move assign
-    PosixMulticastReceiver receiver3 = std::move(receiver2);
+    MulticastReceiver receiver3 = std::move(receiver2);
     EXPECT_EQ(receiver2.native_handle(), -1);
     EXPECT_EQ(receiver3.native_handle(), original_fd);
 }
