@@ -26,11 +26,11 @@ cmake --build build --target benchmarks
 
 ## Results
 
-### Telemetry
+### IPC SPSC Queue
 
-| Benchmark Scenario | Median Latency | Mean Latency | StdDev (CV%) | Throughput (Median) | Bandwidth |
-| :--- | :---: | :---: | :---: | :---: | :---: |
-| **Producer `try_push()`** (Uncontended) | **1.79 ns** | 1.78 ns | 0.011 ns (0.62%) | **561.0 M/s** | ~35.9 GB/s |
-| **Consumer `front()` + `pop()`** | **1.73 ns** | 1.73 ns | 0.015 ns (0.85%) | **579.7 M/s** | ~37.1 GB/s |
-| **Single-Thread Round-Trip** | **2.84 ns** | 2.82 ns | 0.019 ns (0.66%) | **355.2 M/s** | ~22.7 GB/s |
-| **Concurrent SPSC (2 Threads)** | **2.66 ns** | 2.63 ns | 0.092 ns (3.46%) | **191.0 M/s** | **~12.2 GB/s** |
+| Benchmark Scenario | Median Latency | Mean Latency | StdDev (CV%) | Median Throughput |
+| :--- | :---: | :---: | :---: | :---: |
+| **Producer `try_push()`** | **1.79 ns** | 1.78 ns | 0.011 ns (0.62%) | **561.0 M/s** |
+| **Consumer `front()` + `pop()`** | **1.73 ns** | 1.73 ns | 0.015 ns (0.85%) | **579.7 M/s** |
+| **Single-Thread Round-Trip** | **2.84 ns** | 2.82 ns | 0.019 ns (0.66%) | **355.2 M/s** |
+| **Concurrent SPSC** (2 Threads) | **2.66 ns** | 2.63 ns | 0.092 ns (3.46%) | **191.0 M/s** (~12.2 GB/s) | **** |

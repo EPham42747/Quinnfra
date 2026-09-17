@@ -32,7 +32,7 @@ int main(int argc, char* argv[]) {
 
     std::cout << "[Mock Producer] Creating shared memory segment: " << shm_name << "\n";
 
-    auto producer_opt = telemetry::TelemetryProducer<examples::ExampleEvent>::create(shm_name);
+    auto producer_opt = quinnfra::telemetry::TelemetryProducer<examples::ExampleEvent>::create(shm_name);
     if (!producer_opt.has_value()) {
         std::cerr << "[Mock Producer] FATAL: Failed to create shared memory segment "
                   << shm_name << " (segment may already exist or permission denied).\n";

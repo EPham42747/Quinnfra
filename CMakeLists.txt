@@ -21,7 +21,7 @@ include(GoogleTest)
 
 # Compile unit tests
 add_executable(unit_tests
-    tests/telemetry/test_queue.cpp
+    tests/ipc/test_spsc_queue.cpp
     tests/telemetry/test_sinks.cpp
 )
 target_include_directories(unit_tests PRIVATE
@@ -44,7 +44,7 @@ FetchContent_MakeAvailable(googlebenchmark)
 
 # Compile benchmarks
 add_executable(benchmarks
-    benchmarks/telemetry/bench_queue.cpp
+    benchmarks/ipc/bench_spsc_queue.cpp
 )
 target_include_directories(benchmarks PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include

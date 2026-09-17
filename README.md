@@ -33,11 +33,8 @@ Define your own event schema:
 ```cpp
 struct alignas(64) Event {
     uint64_t timestamp_ns;
-    uint32_t sequence_num;
-    uint16_t source_id;
-    uint8_t  level;
-    uint8_t  type;
-    uint8_t  payload[48];
+    uint32_t seq;
+    uint8_t  payload[52];
 };
 
 static_assert(sizeof(Event) == 64, "Event must fit in a 64-byte cache line");
@@ -53,7 +50,7 @@ Include the `producer.hpp` header:
 
 The `TelemetryProducer` type includes a static factory that creates a queue in shared memory. It returns `std::optional` because it may fail, so ensure you validate before using the returned `TelemetryProducer`.
 ```cpp
-auto producer = telemetry::TelemetryProducer<Event>::create("/sample_path");
+auto producer = quinnfra::telemetry::TelemetryProducer<Event>::create("/sample_path");
 if (!producer.has_value()) {
     // Handle error
 }
@@ -64,9 +61,6 @@ Create an event and call `try_push()`:
 Event ev{};
 ev.timestamp_ns = getCurrentNanos();
 ev.sequence_num = seq++;
-ev.source_id    = 1;
-ev.level        = 1;
-ev.type         = 0;
 
 if (!producer->try_push(ev)) {
     // Queue is full
@@ -83,7 +77,7 @@ Include the `consumer.hpp` and any desired sink headers:
 
 The `TelemetryConsumer` type includes a static factory that attaches to an existing queue created by a producer. This will fail if the queue was not created prior. Always validate before using:
 ```cpp
-auto consumer = telemetry::TelemetryConsumer<Event>::attach("/sample_path");
+auto consumer = quinnfra::telemetry::TelemetryConsumer<Event>::attach("/sample_path");
 if (!consumer.has_value()) {
     // Handle error
 }
@@ -93,9 +87,9 @@ Add a sink to handle events that the consumer collects. You can either use a pre
 ```cpp
 auto formatter = [](const Event& event) {
     return "[" + std::to_string(event.timestamp_ns) + " ns] "
-         + "[SEQ:" + std::to_string(event.sequence_num) + "]\n";
+         + "[SEQ:" + std::to_string(event.seq) + "]\n";
 };
-auto sink = std::make_unique<telemetry::TextFileSink<Event>>("sample.log", formatter);
+auto sink = std::make_unique<quinnfra::telemetry::TextFileSink<Event>>("sample.log", formatter);
 ```
 
 Check for new events with `front()` and release them with `pop()`:

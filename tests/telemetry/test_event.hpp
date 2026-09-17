@@ -2,7 +2,7 @@
 #include <cstdint>
 #include <type_traits>
 
-namespace telemetry::testing {
+namespace quinnfra::telemetry::testing {
 
 enum class TestLogLevel : uint8_t {
     DEBUG = 0,
@@ -30,4 +30,4 @@ struct alignas(64) TestEvent {
 static_assert(sizeof(TestEvent) == 64, "TestEvent must be 64 bytes");
 static_assert(std::is_trivially_copyable_v<TestEvent>, "TestEvent must be trivially copyable");
 
-} // namespace telemetry::testing
+} // namespace quinnfra::telemetry::testing

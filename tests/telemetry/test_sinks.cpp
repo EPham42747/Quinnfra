@@ -1,16 +1,17 @@
+#include <unistd.h>
+
 #include <cstdint>
 #include <fstream>
 #include <string>
-#include <unistd.h>
 
 #include <gtest/gtest.h>
 
 #include <quinnfra/telemetry/sinks/binary_file_sink.hpp>
-#include <quinnfra/telemetry/sinks/text_file_sink.hpp>
 #include <quinnfra/telemetry/sinks/filtered_sink.hpp>
+#include <quinnfra/telemetry/sinks/text_file_sink.hpp>
 #include "test_event.hpp"
 
-namespace telemetry::testing {
+namespace quinnfra::telemetry::testing {
 
 namespace {
 TestEvent make_event(uint32_t seq, TestEventType type = TestEventType::HEARTBEAT) {
@@ -198,4 +199,4 @@ TEST(TelemetrySinkTest, FilteredSinkBatchRunLengthSlicing) {
     std::remove(filepath.c_str());
 }
 
-} // namespace telemetry::testing
+} // namespace quinnfra::telemetry::testing

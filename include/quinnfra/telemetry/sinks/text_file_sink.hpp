@@ -7,7 +7,7 @@
 
 #include <quinnfra/telemetry/sinks/sink.hpp>
 
-namespace telemetry {
+namespace quinnfra::telemetry {
 
 /// @brief Formats events into human-readable text logs using a provided formatter callable.
 template <typename T>
@@ -59,4 +59,4 @@ private:
     Formatter formatter_;
 };
 
-} // namespace telemetry
+} // namespace quinnfra::telemetry

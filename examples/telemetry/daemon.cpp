@@ -1,3 +1,7 @@
+#if defined(__x86_64__) || defined(_M_X64)
+#include <immintrin.h>
+#endif
+
 #include <atomic>
 #include <cerrno>
 #include <chrono>
@@ -11,10 +15,6 @@
 #include <string_view>
 #include <thread>
 #include <vector>
-
-#if defined(__x86_64__) || defined(_M_X64)
-#include <immintrin.h>
-#endif
 
 #include <quinnfra/telemetry/consumer.hpp>
 #include <quinnfra/telemetry/sinks/binary_file_sink.hpp>
@@ -147,8 +147,8 @@ int main(int argc, char* argv[]) {
               << "[Telemetry Daemon] Connecting to segment: " << config.shm_name << "\n";
 
     // Attach to shared memory queue
-    constexpr size_t QUEUE_CAPACITY = telemetry::DEFAULT_QUEUE_CAPACITY;
-    auto consumer_opt = telemetry::ConsumerView<examples::ExampleEvent, QUEUE_CAPACITY>::attach(config.shm_name);
+    constexpr size_t QUEUE_CAPACITY = quinnfra::ipc::DEFAULT_QUEUE_CAPACITY;
+    auto consumer_opt = quinnfra::telemetry::TelemetryConsumer<examples::ExampleEvent, QUEUE_CAPACITY>::attach(config.shm_name);
 
     if (!consumer_opt.has_value()) {
         std::cerr << "[Telemetry Daemon] FATAL: Failed to attach to shared memory segment: "
@@ -169,10 +169,10 @@ int main(int argc, char* argv[]) {
     };
 
     // Initialize sinks
-    std::vector<std::unique_ptr<telemetry::Sink<examples::ExampleEvent>>> sinks;
+    std::vector<std::unique_ptr<quinnfra::telemetry::Sink<examples::ExampleEvent>>> sinks;
 
     if (config.binary_log.has_value()) {
-        auto bin_sink = std::make_unique<telemetry::BinaryFileSink<examples::ExampleEvent>>(*config.binary_log);
+        auto bin_sink = std::make_unique<quinnfra::telemetry::BinaryFileSink<examples::ExampleEvent>>(*config.binary_log);
         if (bin_sink->is_open()) {
             std::cout << "[Telemetry Daemon] Registered Binary Sink: " << *config.binary_log << "\n";
             sinks.push_back(std::move(bin_sink));
@@ -183,7 +183,7 @@ int main(int argc, char* argv[]) {
     }
 
     if (config.text_log.has_value()) {
-        auto txt_sink = std::make_unique<telemetry::TextFileSink<examples::ExampleEvent>>(*config.text_log, event_formatter);
+        auto txt_sink = std::make_unique<quinnfra::telemetry::TextFileSink<examples::ExampleEvent>>(*config.text_log, event_formatter);
         if (txt_sink->is_open()) {
             std::cout << "[Telemetry Daemon] Registered Text Sink: " << *config.text_log << "\n";
             sinks.push_back(std::move(txt_sink));
@@ -194,9 +194,9 @@ int main(int argc, char* argv[]) {
     }
 
     if (config.error_log.has_value()) {
-        auto err_file = std::make_unique<telemetry::TextFileSink<examples::ExampleEvent>>(*config.error_log, event_formatter);
+        auto err_file = std::make_unique<quinnfra::telemetry::TextFileSink<examples::ExampleEvent>>(*config.error_log, event_formatter);
         if (err_file->is_open()) {
-            auto err_sink = std::make_unique<telemetry::FilteredSink<examples::ExampleEvent>>(
+            auto err_sink = std::make_unique<quinnfra::telemetry::FilteredSink<examples::ExampleEvent>>(
                 [](const examples::ExampleEvent& ev) { return ev.level >= examples::LogLevel::WARN; },
                 std::move(err_file)
             );
